@@ -4,7 +4,10 @@
 #include <string.h>
 #include "shift-cipher.h"
 
-// Program version
+// Defined in caesar_shift.c
+char *caesar_shift(char *input, int key, int length);
+
+
 const char *argp_program_version = "shift-cipher v 1.0";
 static char doc[] = "Receives parameters: string to cipher, a key between 0 and 25, and a message length.\nExample: ./shift -s \"I love mangoes\" -k 7 -l 13\nOutput: P svcl thunvz\n";
 static char args_doc[] = "string key length";
@@ -33,7 +36,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     switch (key) {
         case 'k':
             arguments->key = atoi(arg);
-            if (arguments->key < 0 || arguments->key > 25) {
+            if (arguments->key < 0 || arguments->key > MODULO_MAX) {
                 fprintf(stderr, "Error: The key is out of range.\n");
                 return ARGP_ERR_UNKNOWN;
             }
@@ -83,12 +86,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     return 0;
 }
 
-// Argp structure initialization
+
 static struct argp argp = {options, parse_opt, args_doc, doc};
-
-
-char *caesar_shift(char *input, int key, int length);
-
 int main(int argc, char **argv) {
     struct arguments arguments = {0}; // Initialize all members to zero
 
@@ -103,6 +102,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Error: Must specify either -s or -f.\n");
         return ARGP_ERR_UNKNOWN;
     }
+    if (strlen(arguments.buffer) != arguments.length) {
+        fprintf(stderr, "Error: The length of the buffer is not equal to the string.\n");
+        return ARGP_ERR_UNKNOWN;
+    }
     char *ciphertext = NULL;
     if (arguments.file !=NULL) {
         FILE *f = fopen(arguments.file, "r");
@@ -111,8 +114,13 @@ int main(int argc, char **argv) {
             free(arguments.buffer);
             return ARGP_ERR_UNKNOWN;
         }
-        char *buffer = malloc(arguments.length+1);
-        fread(buffer, sizeof(char),arguments.length, f);
+        char *buffer = malloc(arguments.length);
+        if (fread(buffer, sizeof(char),arguments.length, f) != arguments.length) {
+            fprintf(stderr, "Error: Failed to read %d bytes from the file.",arguments.length);
+            free(arguments.buffer);
+            free(arguments.file);
+            return ARGP_ERR_UNKNOWN;
+        }
         ciphertext = caesar_shift(buffer, arguments.key, arguments.length);
     } else {
         ciphertext = caesar_shift(arguments.buffer, arguments.key, arguments.length);
@@ -134,14 +142,12 @@ int main(int argc, char **argv) {
         if (fwrite(ciphertext, sizeof(char),arguments.length,f) == arguments.length) {
             return EXIT_SUCCESS;
         }
-        else {
-            fprintf(stderr, "Error: Failed to write to the file %s.\n", arguments.write);
-            free(arguments.buffer);
-            return ARGP_ERR_UNKNOWN;
-        }
+        fprintf(stderr, "Error: Failed to write to the file %s.\n", arguments.write);
+        free(arguments.buffer);
+        return ARGP_ERR_UNKNOWN;
     }
 
     printf("%s\n", ciphertext);
-    free(arguments.buffer); // Free allocated memory for buffer
+    free(arguments.buffer);
     return EXIT_SUCCESS;
 }

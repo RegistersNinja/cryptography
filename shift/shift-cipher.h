@@ -3,3 +3,4 @@
 #define ASCII_Z 90
 #define ASCII_a 97
 #define ASCII_z 122
+#define MODULO_MAX 25
