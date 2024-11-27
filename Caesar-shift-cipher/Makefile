@@ -2,7 +2,7 @@
 CC = gcc
 CFLAGS = -Wall -pedantic -g -ggdb
 FILES = caesar_shift.c main.c
-TARGET = caesar_cipher
+TARGET = ../ignore/caesar_cipher
 
 # Default rule to build the target
 all: $(TARGET)
