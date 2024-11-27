@@ -1,3 +1,19 @@
+/* Program receives 3 parameters: String to cipher, a key which is an integer between
+* 0 and 25, and a message length. The output is printf to stdout - a shifted
+ * message.
+ * Example: ./shift -s "I love mangoes" -k 7 -l 13
+ * Output: P svcl thunvz
+ * flags:
+ *      mandatory:
+ *      -k, --key - integer between 0 and 25 as a shift key
+ *      -l, --length - string length (security feature)
+ *      -s, --string - the string to encrypt, for file see below
+ *      optional:
+ *      -f, --file - read from a file, reads a string from stdin otherwise
+ *      -w, --write - write to a file, creates a file if it doesn't exist. if the flag is not                             specified, the output is written to stdout
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <argp.h>
@@ -15,7 +31,7 @@ static char args_doc[] = "string key length";
 // Define options
 static struct argp_option options[] = {
     {"key", 'k', "NUM", 0, "integer between 0 and 25 as a shift key"},
-    {"string", 's', "STRING", 0, "the string to encrypt"},
+    {"string", 's', "STRING", 0, "the string to encrypt, up to 1024 bytes long"},
     {"length", 'l', "LEN", 0, "length of the string"},
     {"file", 'f', "FILEPATH", 0, "read from a file"},
     {"write", 'w', "WRITEPATH", 0, "write to a file"},
@@ -32,17 +48,16 @@ struct arguments {
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     struct arguments *arguments = state->input;
-
     switch (key) {
         case 'k':
-            arguments->key = atoi(arg);
+            arguments->key = strtol(arg,NULL,10);
             if (arguments->key < 0 || arguments->key > MODULO_MAX) {
                 fprintf(stderr, "Error: The key is out of range.\n");
                 return ARGP_ERR_UNKNOWN;
             }
             break;
         case 'l':
-            arguments->length = atoi(arg);
+            arguments->length = strtol(arg,NULL,10);
             if (arguments->length > MAX_BUFFER_LENGTH) {
                 fprintf(stderr, "Error: The length is out of range.\n");
                 return ARGP_ERR_UNKNOWN;
@@ -57,12 +72,16 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 fprintf(stderr, "Error: Cannot specify both -s and -f.\n");
                 return ARGP_ERR_UNKNOWN;
             }
-            arguments->buffer = malloc(strlen(arg) + 1);
+            if (strlen(arg) > MAX_BUFFER_LENGTH) {
+                fprintf(stderr, "Error: The string is larger than %d characters.\n", MAX_BUFFER_LENGTH);
+                return ARGP_ERR_UNKNOWN;
+            }
+            arguments->buffer = malloc(strlen(arg));
             if (arguments->buffer == NULL) {
                 perror("malloc");
                 return ARGP_ERR_UNKNOWN;
             }
-            strcpy(arguments->buffer, arg); // Copy string into allocated memory
+            strncpy(arguments->buffer, arg, strlen(arg)); // Copy string into allocated memory
             break;
         case 'f':
             if (arguments->buffer != NULL) {
@@ -86,8 +105,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     return 0;
 }
 
-
 static struct argp argp = {options, parse_opt, args_doc, doc};
+
 int main(int argc, char **argv) {
     struct arguments arguments = {0}; // Initialize all members to zero
 
@@ -102,7 +121,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Error: Must specify either -s or -f.\n");
         return ARGP_ERR_UNKNOWN;
     }
-    if (strlen(arguments.buffer) != arguments.length) {
+    if (arguments.buffer!=NULL && strlen(arguments.buffer) != arguments.length) {
         fprintf(stderr, "Error: The length of the buffer is not equal to the string.\n");
         return ARGP_ERR_UNKNOWN;
     }
